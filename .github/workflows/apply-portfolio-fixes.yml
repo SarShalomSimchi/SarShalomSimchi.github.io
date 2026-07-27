@@ -1,0 +1,72 @@
+name: Apply portfolio fixes
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-portfolio-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Update portfolio page
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('index.html')
+          html = page_path.read_text(encoding='utf-8')
+
+          replacements = {
+              '<a class="btn primary" href="mailto:sarshalom.simchi@gmail.com">Email me</a>':
+                  '<a class="btn primary" href="https://mail.google.com/mail/?view=cm&fs=1&to=sarshalom.simchi@gmail.com&su=Portfolio%20Contact%20%E2%80%93%20Sar%20Shalom%20Simchi" target="_blank" rel="noreferrer">Email me</a>',
+              '<div class="visual agri"><div class="mock"><h4>AgriScan</h4><div class="mock-row"></div><div class="mock-row mid"></div><div class="mock-row short"></div></div></div>':
+                  '<div class="visual agri project-image"><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-b64-src="assets/agriscan-project.webp.b64.txt" alt="AgriScan home, soil capture, and visual results screens" width="800" height="450"></div>',
+              '<div class="visual game"><div class="mock"><h4>Agent Tycoon</h4><div class="mock-row"></div><div class="mock-row short"></div><div class="mock-row mid"></div></div></div>':
+                  '<div class="visual game project-image"><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-b64-src="assets/agent-tycoon-project.webp.b64.txt" alt="Agent Tycoon gameplay systems showcase" width="800" height="417" loading="lazy"></div>',
+              '<div class="visual jobs"><div class="mock"><h4>Job Search Systems</h4><div class="mock-row"></div><div class="mock-row mid"></div><div class="mock-row short"></div></div></div>':
+                  '<div class="visual jobs project-image"><img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-b64-src="assets/job-search-project.webp.b64.txt" alt="Local and Base44 AI-assisted job search dashboards" width="800" height="450" loading="lazy"></div>',
+          }
+
+          for old, new in replacements.items():
+              if old in html:
+                  html = html.replace(old, new, 1)
+              elif new not in html:
+                  raise SystemExit(f'Expected page fragment was not found: {old[:80]}')
+
+          css = '''
+          .portrait img{object-position:50% 53%;transform:translate(-2%,2%) scale(1.04)}
+          .project-image{padding:18px;background:#071a3b}
+          .project-image:before{display:none}
+          .project-image img{position:relative;z-index:2;width:100%;height:100%;max-height:330px;object-fit:contain;border-radius:17px;opacity:0;transition:opacity .25s ease;box-shadow:0 18px 40px rgba(0,0,0,.24)}
+          .project-image img.is-loaded{opacity:1}
+          .project-image.jobs{background:linear-gradient(135deg,#dceafb,#9ab8db)}
+          @media(max-width:680px){.project-image{padding:10px}.project-image img{max-height:250px}}
+          '''
+          if '.project-image img.is-loaded' not in html:
+              html = html.replace('</style>', css + '</style>', 1)
+
+          loader = '''<script>
+          (()=>{const images=document.querySelectorAll('img[data-b64-src]');images.forEach(async image=>{try{const response=await fetch(image.dataset.b64Src,{cache:'force-cache'});if(!response.ok)throw new Error(`HTTP ${response.status}`);const base64=(await response.text()).trim();image.src=`data:image/webp;base64,${base64}`;image.classList.add('is-loaded')}catch(error){console.error('Unable to load project image',error)}})})();
+          </script>'''
+          if 'data-b64-src' in html and 'Unable to load project image' not in html:
+              html = html.replace('</body>', loader + '</body>', 1)
+
+          page_path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Commit page updates
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Center portrait, fix Gmail contact, and add project images"
+          git push
