@@ -1,0 +1,52 @@
+name: Align software engineer branding
+
+on:
+  push:
+    paths:
+      - .github/workflows/align-software-engineer-branding.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Update branding and database wording
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          html = path.read_text(encoding='utf-8')
+
+          replacements = {
+              'Senior Backend Engineering': 'Senior Software Engineering',
+              'SQL and NoSQL databases': 'SQL databases and working experience with MongoDB',
+              'Focused on the work most relevant to Senior Backend and Senior Software Engineering opportunities.': 'Focused on the work most relevant to Senior Software Engineering opportunities.',
+              'I am open to Senior Backend and Senior Software Engineering opportunities beyond the Java ecosystem, including roles that use Python, Kotlin, Go, or Node.js.': 'I am open to Senior Software Engineering opportunities beyond the Java ecosystem, particularly backend-focused roles that use Java, Python, Kotlin, Go, or Node.js.',
+              'Let’s discuss a Senior Backend or Senior Software Engineering opportunity.': 'Let’s discuss a Senior Software Engineering opportunity.',
+              '<span>NoSQL</span>': '',
+          }
+
+          for old, new in replacements.items():
+              if old in html:
+                  html = html.replace(old, new)
+              elif new not in html:
+                  raise SystemExit(f'Expected text not found: {old}')
+
+          path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Commit site updates
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Align Senior Software Engineer branding and database experience"
+          git push
