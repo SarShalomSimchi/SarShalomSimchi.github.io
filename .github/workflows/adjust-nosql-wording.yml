@@ -1,0 +1,38 @@
+name: Adjust NoSQL wording
+
+on:
+  push:
+    paths:
+      - '.github/workflows/adjust-nosql-wording.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update wording
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          replacements = {
+              'SQL databases and working experience with MongoDB, clean code': 'SQL databases, practical NoSQL experience using MongoDB, clean code',
+              '<span>SQL</span><span>MongoDB</span><span>Oracle</span>': '<span>SQL</span><span>MongoDB / NoSQL</span><span>Oracle</span>',
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'Missing expected text: {old}')
+              s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Clarify practical NoSQL experience' || exit 0
+          git push
