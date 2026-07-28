@@ -1,0 +1,46 @@
+name: Add resume download button
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/add-resume-download-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add resume download button
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          download_url = 'https://drive.google.com/uc?export=download&id=1uBpx2REcgWbwgFEbVaCCrbSOLj_M97GZ'
+
+          old_contact = '<a class="btn secondary" href="https://www.linkedin.com/in/sarshalomsimchi" target="_blank" rel="noreferrer">View LinkedIn</a><p>Resume available upon request.</p>'
+          new_contact = f'<a class="btn secondary" href="https://www.linkedin.com/in/sarshalomsimchi" target="_blank" rel="noreferrer">View LinkedIn</a><a class="btn secondary" href="{download_url}" target="_blank" rel="noreferrer" download>Download Resume</a>'
+
+          if old_contact in text:
+              text = text.replace(old_contact, new_contact, 1)
+          elif 'Download Resume' not in text:
+              raise SystemExit('Expected contact markup was not found')
+
+          old_hero = '<a class="btn secondary" href="https://www.linkedin.com/in/sarshalomsimchi" target="_blank" rel="noreferrer">LinkedIn</a>'
+          new_hero = old_hero + f'<a class="btn secondary" href="{download_url}" target="_blank" rel="noreferrer" download>Download Resume</a>'
+          if old_hero in text and 'href="' + download_url + '"' not in text.split('<div class="stats">', 1)[0]:
+              text = text.replace(old_hero, new_hero, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add resume download buttons"
+          git push
